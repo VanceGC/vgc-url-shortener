@@ -1,0 +1,101 @@
+# VGC URL Shortener - Caddy Configuration
+# This configuration provides HTTPS termination and reverse proxy to the Flask app
+
+# Main domain configuration
+vgc.to {
+    # Enable automatic HTTPS with Let's Encrypt
+    tls {
+        # Use Let's Encrypt for automatic SSL certificates
+        # Caddy will automatically obtain and renew certificates
+    }
+
+    # Security headers
+    header {
+        # Security headers for better protection
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        X-XSS-Protection "1; mode=block"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self'"
+        
+        # Remove server information
+        -Server
+    }
+
+    # Rate limiting to prevent abuse
+    rate_limit {
+        zone static_files {
+            key {remote_host}
+            events 100
+            window 1m
+        }
+        zone api_calls {
+            key {remote_host}
+            events 60
+            window 1m
+        }
+    }
+
+    # API routes - apply rate limiting
+    @api path /api/*
+    rate_limit @api api_calls
+
+    # Static files - apply different rate limiting
+    @static path *.css *.js *.png *.jpg *.jpeg *.gif *.ico *.svg *.woff *.woff2
+    rate_limit @static static_files
+
+    # Reverse proxy to Flask application
+    reverse_proxy flask-app:5000 {
+        # Health check
+        health_uri /api/health
+        health_interval 30s
+        health_timeout 10s
+        
+        # Load balancing (for future scaling)
+        lb_policy round_robin
+        
+        # Headers for proper forwarding
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+        header_up X-Forwarded-Host {host}
+    }
+
+    # Logging
+    log {
+        output file /var/log/caddy/vgc.to.log {
+            roll_size 100mb
+            roll_keep 5
+            roll_keep_for 720h
+        }
+        format json
+        level INFO
+    }
+
+    # Error handling
+    handle_errors {
+        @404 expression {http.error.status_code} == 404
+        handle @404 {
+            rewrite * /
+            reverse_proxy flask-app:5000
+        }
+        
+        @5xx expression {http.error.status_code} >= 500
+        handle @5xx {
+            respond "Service temporarily unavailable" 503
+        }
+    }
+}
+
+# Redirect www to non-www
+www.vgc.to {
+    redir https://vgc.to{uri} permanent
+}
+
+# Health check endpoint for load balancers
+:8080 {
+    respond /health "OK" 200
+}
+

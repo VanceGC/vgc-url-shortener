@@ -1,0 +1,90 @@
+version: '3.8'
+
+services:
+  # Flask Application
+  flask-app:
+    build: .
+    container_name: vgc-url-shortener
+    restart: unless-stopped
+    environment:
+      - FLASK_ENV=production
+      - FLASK_APP=src/main.py
+      - PYTHONPATH=/app
+    volumes:
+      # Persist database
+      - ./data:/app/src/database
+      # Persist logs
+      - ./logs:/app/logs
+    networks:
+      - vgc-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    depends_on:
+      - caddy
+    labels:
+      - "com.docker.compose.service=flask-app"
+      - "com.vgc.service=url-shortener"
+
+  # Caddy Reverse Proxy
+  caddy:
+    image: caddy:2.7-alpine
+    container_name: vgc-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"  # Health check port
+    volumes:
+      # Caddy configuration
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Persist SSL certificates
+      - caddy_data:/data
+      - caddy_config:/config
+      # Logs
+      - ./logs/caddy:/var/log/caddy
+    networks:
+      - vgc-network
+    environment:
+      - CADDY_INGRESS_NETWORKS=vgc-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    labels:
+      - "com.docker.compose.service=caddy"
+      - "com.vgc.service=reverse-proxy"
+
+  # Watchtower for automatic updates (optional)
+  watchtower:
+    image: containrrr/watchtower:latest
+    container_name: vgc-watchtower
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_POLL_INTERVAL=3600  # Check every hour
+      - WATCHTOWER_INCLUDE_STOPPED=true
+      - WATCHTOWER_REVIVE_STOPPED=false
+    command: --interval 3600 --cleanup
+    labels:
+      - "com.docker.compose.service=watchtower"
+      - "com.vgc.service=auto-updater"
+
+networks:
+  vgc-network:
+    driver: bridge
+    name: vgc-network
+
+volumes:
+  caddy_data:
+    name: vgc_caddy_data
+  caddy_config:
+    name: vgc_caddy_config
+
