@@ -1,11 +1,12 @@
-from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 import string
 import random
 import re
 from urllib.parse import urlparse
 
-db = SQLAlchemy()
+# Share the single SQLAlchemy instance initialized in main.py — a second
+# instance here would never be bound to the app and every query would fail.
+from src.models.user import db
 
 class Url(db.Model):
     __tablename__ = 'urls'
