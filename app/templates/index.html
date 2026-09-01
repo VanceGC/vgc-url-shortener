@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VGC.to — Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #080808;
+    --surface: #0f0f0f;
+    --surface2: #111;
+    --border: #1c1c1c;
+    --border2: #252525;
+    --blue: #0056EB;
+    --blue-bright: #1a6fff;
+    --blue-dim: rgba(0,86,235,0.12);
+    --orange: #ED832B;
+    --orange-dim: rgba(237,131,43,0.12);
+    --green: #22c55e;
+    --green-dim: rgba(34,197,94,0.1);
+    --text: #f0f0f0;
+    --text2: #aaa;
+    --muted: #555;
+    --muted2: #2a2a2a;
+  }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Barlow', sans-serif;
+    min-height: 100vh;
+  }
+  .bg-grid {
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(0,86,235,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,86,235,0.025) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none; z-index: 0;
+  }
+  .app { position: relative; z-index: 1; }
+
+  /* HEADER */
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 0 32px;
+    display: flex; align-items: center; justify-content: space-between;
+    height: 60px;
+    background: rgba(8,8,8,0.92);
+    backdrop-filter: blur(12px);
+    position: sticky; top: 0; z-index: 100;
+  }
+  .logo-row { display: flex; align-items: center; gap: 10px; }
+  .globe-sm { width: 28px; height: 28px; }
+  .logo-vgc {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1.5rem; font-weight: 800;
+    color: var(--blue); letter-spacing: -0.5px;
+  }
+  .logo-dot {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1.5rem; font-weight: 800;
+    color: var(--orange);
+  }
+  .header-right { display: flex; align-items: center; gap: 16px; }
+  .header-stat { color: var(--muted); font-size: 0.8rem; }
+  .logout-btn {
+    background: transparent;
+    border: 1px solid var(--border2);
+    border-radius: 2px; color: var(--muted);
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.8rem; font-weight: 600;
+    letter-spacing: 2px; text-transform: uppercase;
+    padding: 6px 14px; cursor: pointer;
+    transition: all 0.15s; text-decoration: none;
+  }
+  .logout-btn:hover { border-color: var(--orange); color: var(--orange); }
+
+  /* MAIN */
+  main { max-width: 1280px; margin: 0 auto; padding: 28px 32px; }
+
+  /* STATS */
+  .stats-row {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 16px; margin-bottom: 24px;
+  }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px; padding: 20px 24px;
+    position: relative; overflow: hidden;
+  }
+  .stat-card::after {
+    content: ''; position: absolute;
+    top: 0; left: 0; width: 3px; height: 100%;
+  }
+  .stat-card:nth-child(1)::after { background: var(--blue); }
+  .stat-card:nth-child(2)::after { background: var(--orange); }
+  .stat-card:nth-child(3)::after { background: var(--green); }
+  .stat-label {
+    font-size: 0.65rem; font-weight: 600;
+    letter-spacing: 3px; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 8px;
+  }
+  .stat-value {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 2rem; font-weight: 800;
+    color: var(--text); letter-spacing: -0.5px;
+  }
+
+  /* CREATE */
+  .create-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px; padding: 24px;
+    margin-bottom: 24px;
+  }
+  .section-label {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.75rem; font-weight: 700;
+    letter-spacing: 4px; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 16px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .section-label::after {
+    content: ''; flex: 1; height: 1px; background: var(--border);
+  }
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 180px 180px auto;
+    gap: 12px; align-items: end;
+  }
+  .field label {
+    display: block; font-size: 0.65rem; font-weight: 600;
+    letter-spacing: 2px; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 6px;
+  }
+  input[type="text"], input[type="url"] {
+    width: 100%; background: var(--bg);
+    border: 1px solid var(--muted2); border-radius: 2px;
+    padding: 9px 14px; color: var(--text);
+    font-family: 'Barlow', sans-serif; font-size: 0.9rem;
+    transition: border-color 0.15s, box-shadow 0.15s; outline: none;
+  }
+  input:focus {
+    border-color: var(--blue);
+    box-shadow: 0 0 0 3px rgba(0,86,235,0.08);
+  }
+  .btn-create {
+    background: var(--blue); border: none; border-radius: 2px;
+    color: white; font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.9rem; font-weight: 700; letter-spacing: 2px;
+    text-transform: uppercase; padding: 9px 22px;
+    cursor: pointer; white-space: nowrap;
+    transition: background 0.15s; height: 38px;
+  }
+  .btn-create:hover { background: var(--blue-bright); }
+  .result-bar {
+    margin-top: 14px;
+    background: var(--blue-dim);
+    border: 1px solid rgba(0,86,235,0.2);
+    border-radius: 2px; padding: 10px 16px;
+    display: none; align-items: center;
+    justify-content: space-between; gap: 12px;
+  }
+  .result-bar.show { display: flex; }
+  .result-url { color: var(--blue); font-size: 0.9rem; font-weight: 500; }
+  .copy-result-btn {
+    background: transparent; border: 1px solid var(--blue);
+    border-radius: 2px; color: var(--blue);
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.75rem; font-weight: 600;
+    letter-spacing: 1px; text-transform: uppercase;
+    padding: 4px 12px; cursor: pointer; transition: all 0.15s;
+  }
+  .copy-result-btn:hover { background: var(--blue); color: white; }
+
+  /* TABLE */
+  .table-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px; overflow: hidden;
+  }
+  .table-header {
+    padding: 16px 24px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .search-input {
+    background: var(--bg); border: 1px solid var(--muted2);
+    border-radius: 2px; padding: 7px 12px; color: var(--text);
+    font-family: 'Barlow', sans-serif; font-size: 0.85rem;
+    outline: none; width: 240px; transition: border-color 0.15s;
+  }
+  .search-input:focus { border-color: var(--blue); }
+  table { width: 100%; border-collapse: collapse; }
+  th {
+    padding: 10px 20px; text-align: left;
+    font-size: 0.62rem; font-weight: 700;
+    letter-spacing: 3px; text-transform: uppercase;
+    color: var(--muted); border-bottom: 1px solid var(--border);
+    background: var(--surface2);
+  }
+  td {
+    padding: 13px 20px;
+    border-bottom: 1px solid rgba(28,28,28,0.8);
+    font-size: 0.85rem; vertical-align: middle;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(0,86,235,0.03); }
+  .short-link { color: var(--blue); text-decoration: none; font-weight: 600; }
+  .short-link:hover { text-decoration: underline; }
+  .dest-url {
+    color: var(--muted); max-width: 280px;
+    overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap; font-size: 0.8rem;
+  }
+  .label-txt { color: var(--text2); font-size: 0.82rem; margin-bottom: 2px; }
+  .clicks-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: var(--green-dim);
+    border: 1px solid rgba(34,197,94,0.2);
+    border-radius: 20px; padding: 2px 10px;
+    color: var(--green); font-size: 0.75rem; font-weight: 600;
+  }
+  .date-txt { color: var(--muted); font-size: 0.75rem; }
+  .actions { display: flex; gap: 6px; }
+  .btn-icon {
+    background: transparent; border: 1px solid var(--border2);
+    border-radius: 2px; color: var(--muted);
+    cursor: pointer; padding: 4px 10px; font-size: 0.75rem;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 600; letter-spacing: 0.5px;
+    transition: all 0.12s;
+  }
+  .btn-icon:hover { border-color: var(--blue); color: var(--blue); }
+  .btn-icon.danger:hover { border-color: var(--orange); color: var(--orange); }
+  .btn-icon.qr:hover { border-color: #f59e0b; color: #f59e0b; }
+
+  /* MODAL */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.8);
+    backdrop-filter: blur(4px);
+    display: none; align-items: center;
+    justify-content: center; z-index: 1000;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 4px; padding: 32px;
+    width: 480px; max-width: 90vw;
+    animation: fadeUp 0.2s ease;
+    position: relative; overflow: hidden;
+  }
+  .modal::before {
+    content: ''; position: absolute;
+    top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, var(--blue), var(--orange));
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .modal-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1.1rem; font-weight: 700;
+    letter-spacing: 1px; margin-bottom: 20px;
+  }
+  .modal-field { margin-bottom: 16px; }
+  .modal-field label {
+    display: block; font-size: 0.65rem; font-weight: 600;
+    letter-spacing: 2px; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 6px;
+  }
+  .modal-field input { width: 100%; }
+  .modal-actions {
+    display: flex; gap: 10px; margin-top: 24px;
+    justify-content: flex-end;
+  }
+  .btn-save {
+    background: var(--blue); border: none; border-radius: 2px;
+    color: white; font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.9rem; font-weight: 700;
+    letter-spacing: 2px; text-transform: uppercase;
+    padding: 10px 24px; cursor: pointer;
+    transition: background 0.15s;
+  }
+  .btn-save:hover { background: var(--blue-bright); }
+  .btn-cancel {
+    background: transparent; border: 1px solid var(--border2);
+    border-radius: 2px; color: var(--muted);
+    font-family: 'Barlow', sans-serif; font-size: 0.85rem;
+    padding: 10px 20px; cursor: pointer; transition: all 0.15s;
+  }
+  .btn-cancel:hover { border-color: var(--orange); color: var(--orange); }
+
+  /* QR */
+  .qr-container { text-align: center; }
+  .qr-container img {
+    border-radius: 4px; max-width: 200px;
+    margin: 16px auto; display: block;
+    border: 4px solid white;
+  }
+  .qr-url { color: var(--blue); font-size: 0.85rem; margin-bottom: 4px; }
+  .btn-dl {
+    background: transparent; border: 1px solid #f59e0b;
+    border-radius: 2px; color: #f59e0b;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.85rem; font-weight: 600;
+    letter-spacing: 1px; padding: 8px 20px;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .btn-dl:hover { background: #f59e0b; color: black; }
+
+  /* TOAST */
+  .toast {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--surface); border: 1px solid var(--green);
+    border-radius: 2px; padding: 10px 18px;
+    color: var(--green); font-size: 0.85rem;
+    transform: translateY(70px); opacity: 0;
+    transition: all 0.25s ease; z-index: 2000;
+  }
+  .toast.show { transform: translateY(0); opacity: 1; }
+
+  .empty-state {
+    text-align: center; padding: 56px 24px; color: var(--muted);
+  }
+  .empty-icon { font-size: 2.5rem; margin-bottom: 10px; }
+
+  @media (max-width: 900px) {
+    .form-row { grid-template-columns: 1fr; }
+    .stats-row { grid-template-columns: 1fr 1fr; }
+    main { padding: 12px; }
+    header { padding: 0 16px; }
+    .header-stat { display: none; }
+    .logo-vgc { font-size: 1.2rem; }
+    .logo-dot { font-size: 1.2rem; }
+  }
+
+  @media (max-width: 600px) {
+    .stats-row { grid-template-columns: 1fr; }
+    .stat-value { font-size: 1.6rem; }
+    .table-card { overflow: hidden; }
+    .table-scroll-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    table { min-width: 560px; }
+    .table-header { flex-direction: column; align-items: flex-start; gap: 10px; padding: 14px 16px; }
+    .search-input { width: 100%; }
+    .create-card { padding: 16px; }
+    .actions { flex-wrap: wrap; gap: 4px; }
+    .btn-icon { font-size: 0.7rem; padding: 3px 8px; }
+    .dest-url { max-width: 160px; }
+    td, th { padding: 10px 12px; }
+    .modal { width: 95vw; padding: 24px 18px; }
+    .result-bar { flex-direction: column; align-items: flex-start; gap: 8px; }
+    .copy-result-btn { width: 100%; text-align: center; }
+  }
+</style>
+</head>
+<body>
+<div class="bg-grid"></div>
+<div class="app">
+  <header>
+    <div class="logo-row">
+      <svg class="globe-sm" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="24" cy="24" r="19" stroke="#ED832B" stroke-width="2.5"/>
+        <ellipse cx="24" cy="24" rx="9.5" ry="19" stroke="#ED832B" stroke-width="2.5"/>
+        <line x1="5" y1="24" x2="43" y2="24" stroke="#ED832B" stroke-width="2.5"/>
+        <path d="M7 15 Q24 21 41 15" stroke="#ED832B" stroke-width="2" fill="none"/>
+        <path d="M7 33 Q24 27 41 33" stroke="#ED832B" stroke-width="2" fill="none"/>
+      </svg>
+      <span class="logo-vgc">VGC</span><span class="logo-dot">.to</span>
+    </div>
+    <div class="header-right">
+      <span class="header-stat" id="header-stat"></span>
+      <a href="/logout" class="logout-btn">Logout</a>
+    </div>
+  </header>
+
+  <main>
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-label">Total Links</div>
+        <div class="stat-value" id="stat-links">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Total Clicks</div>
+        <div class="stat-value" id="stat-clicks">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Top Performer</div>
+        <div class="stat-value" id="stat-top" style="font-size:1.1rem;margin-top:4px;">—</div>
+      </div>
+    </div>
+
+    <div class="create-card">
+      <div class="section-label">Create Short Link</div>
+      <div class="form-row">
+        <div class="field">
+          <label>Destination URL</label>
+          <input type="url" id="long-url" placeholder="https://example.com/long/url/goes/here">
+        </div>
+        <div class="field">
+          <label>Custom Alias</label>
+          <input type="text" id="custom-alias" placeholder="my-link">
+        </div>
+        <div class="field">
+          <label>Label</label>
+          <input type="text" id="label" placeholder="Campaign name">
+        </div>
+        <button class="btn-create" onclick="createLink()">Shorten →</button>
+      </div>
+      <div class="result-bar" id="result-bar">
+        <span class="result-url" id="result-url"></span>
+        <button class="copy-result-btn" onclick="copyResult()">Copy</button>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <div class="table-header">
+        <div class="section-label" style="margin:0">All Links</div>
+        <input type="text" class="search-input" placeholder="Search links, labels, URLs..." oninput="filterLinks(this.value)">
+      </div>
+      <div class="table-scroll-wrap"><table>
+        <thead>
+          <tr>
+            <th>Short URL</th>
+            <th>Label / Destination</th>
+            <th>Clicks</th>
+            <th>Created</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="links-tbody">
+          <tr><td colspan="5"><div class="empty-state"><div class="empty-icon">🔗</div>Loading...</div></td></tr>
+        </tbody>
+      </table></div>
+    </div>
+  </main>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal-overlay" id="edit-modal">
+  <div class="modal">
+    <div class="modal-title">Edit Link</div>
+    <input type="hidden" id="edit-shortcode">
+    <div class="modal-field">
+      <label>Label</label>
+      <input type="text" id="edit-label">
+    </div>
+    <div class="modal-field">
+      <label>Destination URL</label>
+      <input type="url" id="edit-url">
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('edit-modal')">Cancel</button>
+      <button class="btn-save" onclick="saveEdit()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- QR Modal -->
+<div class="modal-overlay" id="qr-modal">
+  <div class="modal">
+    <div class="modal-title">QR Code</div>
+    <div class="qr-container">
+      <div class="qr-url" id="qr-url"></div>
+      <img id="qr-image" src="" alt="QR Code">
+      <div style="display:flex;gap:10px;justify-content:center;margin-top:12px;">
+        <button class="btn-dl" onclick="downloadQR()">Download PNG</button>
+        <button class="btn-cancel" onclick="closeModal('qr-modal')">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let allLinks = [];
+let currentQRData = null;
+
+async function loadStats() {
+  const r = await fetch('/api/stats');
+  const d = await r.json();
+  document.getElementById('stat-links').textContent = d.total_links.toLocaleString();
+  document.getElementById('stat-clicks').textContent = d.total_clicks.toLocaleString();
+  document.getElementById('header-stat').textContent = `${d.total_links} links · ${d.total_clicks} clicks`;
+  if (d.top_links.length > 0) {
+    const top = d.top_links[0];
+    document.getElementById('stat-top').textContent = `${top.label || top.short} (${top.clicks})`;
+  }
+}
+
+async function loadLinks() {
+  const r = await fetch('/api/links');
+  allLinks = await r.json();
+  renderLinks(allLinks);
+}
+
+function renderLinks(links) {
+  const tbody = document.getElementById('links-tbody');
+  if (links.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state"><div class="empty-icon">🔗</div>No links yet. Create your first one above!</div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = links.map(l => `
+    <tr>
+      <td><a class="short-link" href="https://vgc.to/${l.short}" target="_blank">vgc.to/${l.short}</a></td>
+      <td>
+        ${l.label ? `<div class="label-txt">${escHtml(l.label)}</div>` : ''}
+        <div class="dest-url" title="${escHtml(l.original_url)}">${escHtml(l.original_url)}</div>
+      </td>
+      <td><span class="clicks-badge">↗ ${l.click_count.toLocaleString()}</span></td>
+      <td><span class="date-txt">${formatDate(l.created_at)}</span></td>
+      <td>
+        <div class="actions">
+          <button class="btn-icon btn-copy" data-url="https://vgc.to/${l.short}">Copy</button>
+          <button class="btn-icon qr btn-qr" data-short="${l.short}">QR</button>
+          <button class="btn-icon btn-edit" data-short="${l.short}" data-url="${escHtml(l.original_url)}" data-label="${escHtml(l.label || '')}">Edit</button>
+          <button class="btn-icon danger btn-delete" data-short="${l.short}">Delete</button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+
+  tbody.querySelectorAll('.btn-copy').forEach(btn => {
+    btn.addEventListener('click', () => copyLink(btn.dataset.url));
+  });
+  tbody.querySelectorAll('.btn-qr').forEach(btn => {
+    btn.addEventListener('click', () => showQR(btn.dataset.short));
+  });
+  tbody.querySelectorAll('.btn-edit').forEach(btn => {
+    btn.addEventListener('click', () => openEdit(btn.dataset.short, btn.dataset.url, btn.dataset.label));
+  });
+  tbody.querySelectorAll('.btn-delete').forEach(btn => {
+    btn.addEventListener('click', () => deleteLink(btn.dataset.short));
+  });
+}
+
+function filterLinks(q) {
+  q = q.toLowerCase();
+  renderLinks(allLinks.filter(l =>
+    l.short.toLowerCase().includes(q) ||
+    l.original_url.toLowerCase().includes(q) ||
+    (l.label || '').toLowerCase().includes(q)
+  ));
+}
+
+async function createLink() {
+  const url = document.getElementById('long-url').value.trim();
+  const alias = document.getElementById('custom-alias').value.trim();
+  const label = document.getElementById('label').value.trim();
+  if (!url) { showToast('Please enter a URL', true); return; }
+  const r = await fetch('/api/shorten', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({url, custom_alias: alias || undefined, label})
+  });
+  const d = await r.json();
+  if (r.ok) {
+    document.getElementById('result-url').textContent = d.short_url;
+    document.getElementById('result-bar').classList.add('show');
+    document.getElementById('long-url').value = '';
+    document.getElementById('custom-alias').value = '';
+    document.getElementById('label').value = '';
+    loadLinks(); loadStats();
+    showToast('Link created!');
+  } else {
+    showToast(d.error || 'Error creating link', true);
+  }
+}
+
+function copyResult() {
+  const url = document.getElementById('result-url').textContent;
+  copyToClipboard(url);
+  showToast('Copied to clipboard!');
+}
+
+function copyLink(url) {
+  copyToClipboard(url);
+  showToast('Copied!');
+}
+
+function copyToClipboard(text) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).catch(() => fallbackCopy(text));
+  } else {
+    fallbackCopy(text);
+  }
+}
+
+function fallbackCopy(text) {
+  const el = document.createElement('textarea');
+  el.value = text;
+  el.style.position = 'fixed';
+  el.style.opacity = '0';
+  document.body.appendChild(el);
+  el.select();
+  document.execCommand('copy');
+  document.body.removeChild(el);
+}
+
+function openEdit(shortcode, url, label) {
+  document.getElementById('edit-shortcode').value = shortcode;
+  document.getElementById('edit-url').value = url;
+  document.getElementById('edit-label').value = label;
+  document.getElementById('edit-modal').classList.add('show');
+}
+
+async function saveEdit() {
+  const shortcode = document.getElementById('edit-shortcode').value;
+  const new_url = document.getElementById('edit-url').value.trim();
+  const label = document.getElementById('edit-label').value.trim();
+  const r = await fetch(`/api/edit/${shortcode}`, {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({new_url, label})
+  });
+  if (r.ok) { closeModal('edit-modal'); loadLinks(); showToast('Link updated!'); }
+  else showToast('Error updating link', true);
+}
+
+async function deleteLink(shortcode) {
+  if (!confirm(`Delete vgc.to/${shortcode}? This cannot be undone.`)) return;
+  const r = await fetch(`/api/delete/${shortcode}`, {method: 'DELETE'});
+  if (r.ok) { loadLinks(); loadStats(); showToast('Deleted'); }
+}
+
+async function showQR(shortcode) {
+  const r = await fetch(`/api/qr/${shortcode}`);
+  const d = await r.json();
+  currentQRData = d;
+  document.getElementById('qr-url').textContent = d.url;
+  document.getElementById('qr-image').src = d.qr;
+  document.getElementById('qr-modal').classList.add('show');
+}
+
+function downloadQR() {
+  if (!currentQRData) return;
+  const a = document.createElement('a');
+  a.href = currentQRData.qr;
+  a.download = `qr-${currentQRData.url.split('/').pop()}.png`;
+  a.click();
+}
+
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+function showToast(msg, isError = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.borderColor = isError ? 'var(--orange)' : 'var(--green)';
+  t.style.color = isError ? 'var(--orange)' : 'var(--green)';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function formatDate(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'});
+}
+
+function escHtml(str) {
+  if (!str) return '';
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', e => { if (e.target === el) el.classList.remove('show'); });
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') document.querySelectorAll('.modal-overlay').forEach(el => el.classList.remove('show'));
+});
+
+loadStats();
+loadLinks();
+</script>
+</body>
+</html>
