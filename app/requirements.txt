@@ -5,3 +5,4 @@ pymysql==1.1.1
 qrcode[pil]==7.4.2
 gunicorn==22.0.0
 cryptography==42.0.8
+requests==2.32.5

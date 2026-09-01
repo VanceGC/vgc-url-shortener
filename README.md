@@ -8,6 +8,7 @@ Flask + MySQL + Docker URL shortener with click tracking, QR codes, and a clean 
 - Label/notes per link
 - Search/filter links
 - Custom aliases
+- Per-link Open Graph previews, using destination metadata by default or custom metadata when selected
 - Secure password hashing
 - MySQL backend
 - Docker containerized
@@ -102,3 +103,8 @@ cd /opt/vgc-url-shortener
 docker compose down
 docker compose up -d --build
 ```
+
+## Branches
+
+- `main` mirrors the application currently running at vgc.to.
+- `staging` contains the next set of changes for testing before production deployment.

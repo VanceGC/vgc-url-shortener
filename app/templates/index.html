@@ -136,16 +136,40 @@
     letter-spacing: 2px; text-transform: uppercase;
     color: var(--muted); margin-bottom: 6px;
   }
-  input[type="text"], input[type="url"] {
+  input[type="text"], input[type="url"], select, textarea {
     width: 100%; background: var(--bg);
     border: 1px solid var(--muted2); border-radius: 2px;
     padding: 9px 14px; color: var(--text);
     font-family: 'Barlow', sans-serif; font-size: 0.9rem;
     transition: border-color 0.15s, box-shadow 0.15s; outline: none;
   }
-  input:focus {
+  input:focus, select:focus, textarea:focus {
     border-color: var(--blue);
     box-shadow: 0 0 0 3px rgba(0,86,235,0.08);
+  }
+  textarea { min-height: 76px; resize: vertical; }
+  .og-options {
+    margin-top: 16px; padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+  .og-options-grid {
+    display: grid; grid-template-columns: 240px 1fr 1fr;
+    gap: 12px; align-items: start;
+  }
+  .og-custom-fields {
+    display: none; grid-column: 1 / -1;
+    grid-template-columns: 1fr 1fr; gap: 12px;
+  }
+  .og-custom-fields.show { display: grid; }
+  .og-description-field { grid-column: 1 / -1; }
+  .field-help {
+    color: var(--muted); font-size: 0.75rem;
+    line-height: 1.4; margin-top: 6px;
+  }
+  .og-badge {
+    display: inline-block; margin-top: 5px;
+    color: var(--orange); font-size: 0.65rem;
+    letter-spacing: 1px; text-transform: uppercase;
   }
   .btn-create {
     background: var(--blue); border: none; border-radius: 2px;
@@ -332,6 +356,8 @@
 
   @media (max-width: 900px) {
     .form-row { grid-template-columns: 1fr; }
+    .og-options-grid, .og-custom-fields { grid-template-columns: 1fr; }
+    .og-description-field { grid-column: auto; }
     .stats-row { grid-template-columns: 1fr 1fr; }
     main { padding: 12px; }
     header { padding: 0 16px; }
@@ -412,6 +438,32 @@
         </div>
         <button class="btn-create" onclick="createLink()">Shorten →</button>
       </div>
+      <div class="og-options">
+        <div class="og-options-grid">
+          <div class="field">
+            <label>Open Graph Preview</label>
+            <select id="og-mode" onchange="toggleOgFields('create')">
+              <option value="destination" selected>Use destination metadata</option>
+              <option value="custom">Use custom metadata</option>
+            </select>
+            <div class="field-help">Controls the preview shown when this short link is shared.</div>
+          </div>
+          <div class="og-custom-fields" id="create-og-custom-fields">
+            <div class="field">
+              <label>Preview Title</label>
+              <input type="text" id="og-title" maxlength="255" placeholder="Title shown in social previews">
+            </div>
+            <div class="field">
+              <label>Preview Image URL</label>
+              <input type="url" id="og-image" placeholder="https://example.com/image.jpg">
+            </div>
+            <div class="field og-description-field">
+              <label>Preview Description</label>
+              <textarea id="og-description" maxlength="1000" placeholder="Description shown in social previews"></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
       <div class="result-bar" id="result-bar">
         <span class="result-url" id="result-url"></span>
         <button class="copy-result-btn" onclick="copyResult()">Copy</button>
@@ -453,6 +505,28 @@
     <div class="modal-field">
       <label>Destination URL</label>
       <input type="url" id="edit-url">
+    </div>
+    <div class="modal-field">
+      <label>Open Graph Preview</label>
+      <select id="edit-og-mode" onchange="toggleOgFields('edit')">
+        <option value="destination">Use destination metadata</option>
+        <option value="custom">Use custom metadata</option>
+      </select>
+      <div class="field-help">Saving destination mode refreshes metadata from the destination page.</div>
+    </div>
+    <div class="og-custom-fields" id="edit-og-custom-fields">
+      <div class="modal-field">
+        <label>Preview Title</label>
+        <input type="text" id="edit-og-title" maxlength="255">
+      </div>
+      <div class="modal-field">
+        <label>Preview Image URL</label>
+        <input type="url" id="edit-og-image">
+      </div>
+      <div class="modal-field og-description-field">
+        <label>Preview Description</label>
+        <textarea id="edit-og-description" maxlength="1000"></textarea>
+      </div>
     </div>
     <div class="modal-actions">
       <button class="btn-cancel" onclick="closeModal('edit-modal')">Cancel</button>
@@ -512,6 +586,7 @@ function renderLinks(links) {
       <td>
         ${l.label ? `<div class="label-txt">${escHtml(l.label)}</div>` : ''}
         <div class="dest-url" title="${escHtml(l.original_url)}">${escHtml(l.original_url)}</div>
+        <span class="og-badge">OG: ${l.og_mode === 'custom' ? 'Custom' : 'Destination'}</span>
       </td>
       <td><span class="clicks-badge">↗ ${l.click_count.toLocaleString()}</span></td>
       <td><span class="date-txt">${formatDate(l.created_at)}</span></td>
@@ -519,7 +594,7 @@ function renderLinks(links) {
         <div class="actions">
           <button class="btn-icon btn-copy" data-url="https://vgc.to/${l.short}">Copy</button>
           <button class="btn-icon qr btn-qr" data-short="${l.short}">QR</button>
-          <button class="btn-icon btn-edit" data-short="${l.short}" data-url="${escHtml(l.original_url)}" data-label="${escHtml(l.label || '')}">Edit</button>
+          <button class="btn-icon btn-edit" data-short="${l.short}">Edit</button>
           <button class="btn-icon danger btn-delete" data-short="${l.short}">Delete</button>
         </div>
       </td>
@@ -533,7 +608,7 @@ function renderLinks(links) {
     btn.addEventListener('click', () => showQR(btn.dataset.short));
   });
   tbody.querySelectorAll('.btn-edit').forEach(btn => {
-    btn.addEventListener('click', () => openEdit(btn.dataset.short, btn.dataset.url, btn.dataset.label));
+    btn.addEventListener('click', () => openEdit(btn.dataset.short));
   });
   tbody.querySelectorAll('.btn-delete').forEach(btn => {
     btn.addEventListener('click', () => deleteLink(btn.dataset.short));
@@ -553,11 +628,18 @@ async function createLink() {
   const url = document.getElementById('long-url').value.trim();
   const alias = document.getElementById('custom-alias').value.trim();
   const label = document.getElementById('label').value.trim();
+  const og_mode = document.getElementById('og-mode').value;
+  const og_title = document.getElementById('og-title').value.trim();
+  const og_description = document.getElementById('og-description').value.trim();
+  const og_image = document.getElementById('og-image').value.trim();
   if (!url) { showToast('Please enter a URL', true); return; }
   const r = await fetch('/api/shorten', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({url, custom_alias: alias || undefined, label})
+    body: JSON.stringify({
+      url, custom_alias: alias || undefined, label,
+      og_mode, og_title, og_description, og_image
+    })
   });
   const d = await r.json();
   if (r.ok) {
@@ -566,6 +648,11 @@ async function createLink() {
     document.getElementById('long-url').value = '';
     document.getElementById('custom-alias').value = '';
     document.getElementById('label').value = '';
+    document.getElementById('og-mode').value = 'destination';
+    document.getElementById('og-title').value = '';
+    document.getElementById('og-description').value = '';
+    document.getElementById('og-image').value = '';
+    toggleOgFields('create');
     loadLinks(); loadStats();
     showToast('Link created!');
   } else {
@@ -603,10 +690,17 @@ function fallbackCopy(text) {
   document.body.removeChild(el);
 }
 
-function openEdit(shortcode, url, label) {
+function openEdit(shortcode) {
+  const link = allLinks.find(item => item.short === shortcode);
+  if (!link) return;
   document.getElementById('edit-shortcode').value = shortcode;
-  document.getElementById('edit-url').value = url;
-  document.getElementById('edit-label').value = label;
+  document.getElementById('edit-url').value = link.original_url;
+  document.getElementById('edit-label').value = link.label || '';
+  document.getElementById('edit-og-mode').value = link.og_mode || 'destination';
+  document.getElementById('edit-og-title').value = link.og_title || '';
+  document.getElementById('edit-og-description').value = link.og_description || '';
+  document.getElementById('edit-og-image').value = link.og_image || '';
+  toggleOgFields('edit');
   document.getElementById('edit-modal').classList.add('show');
 }
 
@@ -614,13 +708,18 @@ async function saveEdit() {
   const shortcode = document.getElementById('edit-shortcode').value;
   const new_url = document.getElementById('edit-url').value.trim();
   const label = document.getElementById('edit-label').value.trim();
+  const og_mode = document.getElementById('edit-og-mode').value;
+  const og_title = document.getElementById('edit-og-title').value.trim();
+  const og_description = document.getElementById('edit-og-description').value.trim();
+  const og_image = document.getElementById('edit-og-image').value.trim();
   const r = await fetch(`/api/edit/${shortcode}`, {
     method: 'PUT',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({new_url, label})
+    body: JSON.stringify({new_url, label, og_mode, og_title, og_description, og_image})
   });
+  const d = await r.json();
   if (r.ok) { closeModal('edit-modal'); loadLinks(); showToast('Link updated!'); }
-  else showToast('Error updating link', true);
+  else showToast(d.error || 'Error updating link', true);
 }
 
 async function deleteLink(shortcode) {
@@ -647,6 +746,11 @@ function downloadQR() {
 }
 
 function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+function toggleOgFields(context) {
+  const mode = document.getElementById(context === 'create' ? 'og-mode' : 'edit-og-mode').value;
+  document.getElementById(`${context}-og-custom-fields`).classList.toggle('show', mode === 'custom');
+}
 
 function showToast(msg, isError = false) {
   const t = document.getElementById('toast');

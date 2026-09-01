@@ -1,6 +1,8 @@
 from flask import Flask, request, jsonify, redirect, session, url_for, render_template
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
+from sqlalchemy import inspect, text
+from sqlalchemy.exc import OperationalError
 from functools import wraps
 from datetime import timedelta, datetime
 import os
@@ -11,6 +13,8 @@ import qrcode
 import qrcode.image.svg
 import io
 import base64
+
+from og_metadata import fetch_open_graph, is_preview_crawler, validate_http_url
 
 app = Flask(__name__)
 CORS(app)
@@ -24,7 +28,10 @@ DB_PASS = os.environ.get('DB_PASS', 'vgctopass')
 DB_HOST = os.environ.get('DB_HOST', 'db')
 DB_NAME = os.environ.get('DB_NAME', 'vgcto')
 
-app.config['SQLALCHEMY_DATABASE_URI'] = f'mysql+pymysql://{DB_USER}:{DB_PASS}@{DB_HOST}/{DB_NAME}'
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
+    'DATABASE_URL',
+    f'mysql+pymysql://{DB_USER}:{DB_PASS}@{DB_HOST}/{DB_NAME}'
+)
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
@@ -44,6 +51,51 @@ class URLMap(db.Model):
     click_count = db.Column(db.Integer, default=0)
     last_clicked = db.Column(db.DateTime, nullable=True)
     label = db.Column(db.String(255), nullable=True)
+    og_mode = db.Column(db.String(20), nullable=False, default='destination')
+    og_title = db.Column(db.String(255), nullable=True)
+    og_description = db.Column(db.String(1000), nullable=True)
+    og_image = db.Column(db.String(2048), nullable=True)
+
+
+def normalize_og_mode(value):
+    return value if value in {'destination', 'custom'} else 'destination'
+
+
+def clean_text(value, limit):
+    return value.strip()[:limit] if isinstance(value, str) else ''
+
+
+def clean_optional_url(value):
+    value = clean_text(value, 2048)
+    return validate_http_url(value) if value else ''
+
+
+def refresh_destination_metadata(link):
+    try:
+        metadata = fetch_open_graph(link.original_url)
+    except Exception as exc:
+        app.logger.warning("Could not fetch Open Graph metadata for %s: %s", link.original_url, exc)
+        metadata = {'title': '', 'description': '', 'image': ''}
+
+    link.og_title = metadata['title'][:255] or None
+    link.og_description = metadata['description'][:1000] or None
+    link.og_image = metadata['image'][:2048] or None
+
+
+def serialize_link(link):
+    return {
+        'id': link.id,
+        'short': link.short,
+        'original_url': link.original_url,
+        'label': link.label or '',
+        'click_count': link.click_count,
+        'created_at': link.created_at.isoformat() if link.created_at else None,
+        'last_clicked': link.last_clicked.isoformat() if link.last_clicked else None,
+        'og_mode': link.og_mode or 'destination',
+        'og_title': link.og_title or '',
+        'og_description': link.og_description or '',
+        'og_image': link.og_image or ''
+    }
 
 def login_required(f):
     @wraps(f)
@@ -86,6 +138,22 @@ def redirect_short_url(shortcode):
         return "Not found", 404
     entry = URLMap.query.filter_by(short=shortcode).first()
     if entry:
+        if is_preview_crawler(request.headers.get('User-Agent')):
+            if (entry.og_mode or 'destination') == 'destination' and not any([
+                entry.og_title, entry.og_description, entry.og_image
+            ]):
+                refresh_destination_metadata(entry)
+                db.session.commit()
+
+            return render_template(
+                'redirect.html',
+                destination=entry.original_url,
+                short_url=request.url,
+                title=entry.og_title or entry.label or entry.original_url,
+                description=entry.og_description or '',
+                image=entry.og_image or ''
+            )
+
         entry.click_count += 1
         entry.last_clicked = datetime.utcnow()
         db.session.commit()
@@ -95,13 +163,19 @@ def redirect_short_url(shortcode):
 @app.route('/api/shorten', methods=['POST'])
 @login_required
 def shorten():
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     original_url = data.get('url')
     custom_alias = data.get('custom_alias')
     label = data.get('label', '')
+    og_mode = normalize_og_mode(data.get('og_mode'))
 
     if not original_url:
         return jsonify({'error': 'URL is required'}), 400
+
+    try:
+        original_url = validate_http_url(original_url)
+    except ValueError as exc:
+        return jsonify({'error': str(exc)}), 400
 
     if custom_alias:
         if URLMap.query.filter_by(short=custom_alias).first():
@@ -112,7 +186,23 @@ def shorten():
         while URLMap.query.filter_by(short=short).first():
             short = ''.join(random.choices(string.ascii_letters + string.digits, k=6))
 
-    new_entry = URLMap(original_url=original_url, short=short, label=label)
+    new_entry = URLMap(
+        original_url=original_url,
+        short=short,
+        label=label,
+        og_mode=og_mode
+    )
+    if og_mode == 'custom':
+        try:
+            og_image = clean_optional_url(data.get('og_image'))
+        except ValueError as exc:
+            return jsonify({'error': f'Preview image: {exc}'}), 400
+        new_entry.og_title = clean_text(data.get('og_title'), 255) or None
+        new_entry.og_description = clean_text(data.get('og_description'), 1000) or None
+        new_entry.og_image = og_image or None
+    else:
+        refresh_destination_metadata(new_entry)
+
     db.session.add(new_entry)
     db.session.commit()
 
@@ -122,23 +212,12 @@ def shorten():
 @login_required
 def list_links():
     links = URLMap.query.order_by(URLMap.created_at.desc()).all()
-    return jsonify([
-        {
-            'id': link.id,
-            'short': link.short,
-            'original_url': link.original_url,
-            'label': link.label or '',
-            'click_count': link.click_count,
-            'created_at': link.created_at.isoformat() if link.created_at else None,
-            'last_clicked': link.last_clicked.isoformat() if link.last_clicked else None
-        }
-        for link in links
-    ])
+    return jsonify([serialize_link(link) for link in links])
 
 @app.route('/api/edit/<string:shortcode>', methods=['PUT'])
 @login_required
 def edit_link(shortcode):
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     new_url = data.get('new_url')
     new_label = data.get('label')
 
@@ -146,10 +225,28 @@ def edit_link(shortcode):
     if not link:
         return jsonify({'error': 'Shortcode not found'}), 404
 
+    og_mode = normalize_og_mode(data.get('og_mode', link.og_mode))
+
     if new_url:
-        link.original_url = new_url
+        try:
+            link.original_url = validate_http_url(new_url)
+        except ValueError as exc:
+            return jsonify({'error': str(exc)}), 400
     if new_label is not None:
         link.label = new_label
+
+    link.og_mode = og_mode
+    if og_mode == 'custom':
+        try:
+            og_image = clean_optional_url(data.get('og_image'))
+        except ValueError as exc:
+            return jsonify({'error': f'Preview image: {exc}'}), 400
+        link.og_title = clean_text(data.get('og_title'), 255) or None
+        link.og_description = clean_text(data.get('og_description'), 1000) or None
+        link.og_image = og_image or None
+    else:
+        refresh_destination_metadata(link)
+
     db.session.commit()
 
     return jsonify({'message': 'Link updated successfully'})
@@ -199,8 +296,29 @@ def get_stats():
         ]
     })
 
+def ensure_open_graph_columns():
+    columns = {column['name'] for column in inspect(db.engine).get_columns('url_map')}
+    additions = {
+        'og_mode': "VARCHAR(20) NOT NULL DEFAULT 'destination'",
+        'og_title': 'VARCHAR(255) NULL',
+        'og_description': 'VARCHAR(1000) NULL',
+        'og_image': 'VARCHAR(2048) NULL'
+    }
+    for name, definition in additions.items():
+        if name not in columns:
+            try:
+                db.session.execute(text(f'ALTER TABLE url_map ADD COLUMN {name} {definition}'))
+                db.session.commit()
+            except OperationalError as exc:
+                db.session.rollback()
+                error_code = exc.orig.args[0] if getattr(exc.orig, 'args', None) else None
+                if error_code != 1060:
+                    raise
+
+
 with app.app_context():
     db.create_all()
+    ensure_open_graph_columns()
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=5000, debug=False)
