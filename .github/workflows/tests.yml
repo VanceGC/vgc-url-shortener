@@ -20,4 +20,4 @@ jobs:
       - run: python -m unittest -v test_og_metadata.py test_app.py
         working-directory: app
         env:
-          DATABASE_URL: sqlite:///:memory:
+          DATABASE_URL: 'sqlite:///:memory:'
