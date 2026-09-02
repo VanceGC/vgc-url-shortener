@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ title }}</title>
+  <link rel="canonical" href="{{ destination }}">
+  <meta http-equiv="refresh" content="0;url={{ destination }}">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="{{ short_url }}">
+  <meta property="og:title" content="{{ title }}">
+  {% if description %}<meta property="og:description" content="{{ description }}">{% endif %}
+  {% if image %}<meta property="og:image" content="{{ image }}">{% endif %}
+  <meta name="twitter:card" content="{% if image %}summary_large_image{% else %}summary{% endif %}">
+  <meta name="twitter:title" content="{{ title }}">
+  {% if description %}<meta name="twitter:description" content="{{ description }}">{% endif %}
+  {% if image %}<meta name="twitter:image" content="{{ image }}">{% endif %}
+</head>
+<body>
+  <p>Redirecting to <a href="{{ destination }}">{{ destination }}</a></p>
+  <script>window.location.replace({{ destination|tojson }});</script>
+</body>
+</html>
