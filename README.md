@@ -108,3 +108,5 @@ docker compose up -d --build
 
 - `main` mirrors the application currently running at vgc.to.
 - `staging` contains the next set of changes for testing before production deployment.
+
+Set `PUBLIC_BASE_URL` and `APP_PORT` in `.env` when running a separate environment. For example, staging uses `https://staging.vgc.to` and port `5002`.

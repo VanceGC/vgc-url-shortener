@@ -45,6 +45,18 @@ class AppOpenGraphTests(unittest.TestCase):
         with app.app_context():
             self.assertEqual(URLMap.query.filter_by(short='custom-og').one().click_count, 1)
 
+    def test_dashboard_and_api_use_the_configured_public_domain(self):
+        response = self.client.post('/api/shorten', json={
+            'url': 'https://example.com/article',
+            'custom_alias': 'domain-test',
+            'og_mode': 'custom'
+        })
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.get_json()['short_url'], 'https://vgc.to/domain-test')
+
+        dashboard = self.client.get('/')
+        self.assertIn(b'const PUBLIC_BASE_URL = "https://vgc.to"', dashboard.data)
+
     @patch('app.fetch_open_graph', return_value={
         'title': 'Destination title',
         'description': 'Destination description',

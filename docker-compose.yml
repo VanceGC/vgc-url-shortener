@@ -30,8 +30,9 @@ services:
       DB_NAME: ${DB_NAME}
       ADMIN_USERNAME: ${ADMIN_USERNAME}
       ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-https://vgc.to}
     ports:
-      - "5001:5000"
+      - "${APP_PORT:-5001}:5000"
 
 volumes:
   db_data:

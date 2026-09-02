@@ -38,6 +38,7 @@ db = SQLAlchemy(app)
 
 ADMIN_USERNAME = os.environ.get('ADMIN_USERNAME', 'admin')
 ADMIN_PASSWORD_HASH = os.environ.get('ADMIN_PASSWORD_HASH', '')
+PUBLIC_BASE_URL = os.environ.get('PUBLIC_BASE_URL', 'https://vgc.to').rstrip('/')
 
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
@@ -109,7 +110,7 @@ def login_required(f):
 def serve_index():
     if not session.get('logged_in'):
         return redirect(url_for('login'))
-    return render_template('index.html')
+    return render_template('index.html', public_base_url=PUBLIC_BASE_URL)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -148,7 +149,7 @@ def redirect_short_url(shortcode):
             return render_template(
                 'redirect.html',
                 destination=entry.original_url,
-                short_url=request.url,
+                short_url=f"{PUBLIC_BASE_URL}/{entry.short}",
                 title=entry.og_title or entry.label or entry.original_url,
                 description=entry.og_description or '',
                 image=entry.og_image or ''
@@ -206,7 +207,7 @@ def shorten():
     db.session.add(new_entry)
     db.session.commit()
 
-    return jsonify({'short_url': f"https://vgc.to/{short}", 'short': short}), 201
+    return jsonify({'short_url': f"{PUBLIC_BASE_URL}/{short}", 'short': short}), 201
 
 @app.route('/api/links')
 @login_required
@@ -268,7 +269,7 @@ def get_qr(shortcode):
     if not link:
         return jsonify({'error': 'Shortcode not found'}), 404
 
-    short_url = f"https://vgc.to/{shortcode}"
+    short_url = f"{PUBLIC_BASE_URL}/{shortcode}"
     qr = qrcode.QRCode(version=1, box_size=10, border=4)
     qr.add_data(short_url)
     qr.make(fit=True)

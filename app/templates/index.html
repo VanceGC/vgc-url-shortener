@@ -553,6 +553,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
+const PUBLIC_BASE_URL = {{ public_base_url|tojson }};
 let allLinks = [];
 let currentQRData = null;
 
@@ -582,7 +583,7 @@ function renderLinks(links) {
   }
   tbody.innerHTML = links.map(l => `
     <tr>
-      <td><a class="short-link" href="https://vgc.to/${l.short}" target="_blank">vgc.to/${l.short}</a></td>
+      <td><a class="short-link" href="${PUBLIC_BASE_URL}/${l.short}" target="_blank">${displayShortUrl(l.short)}</a></td>
       <td>
         ${l.label ? `<div class="label-txt">${escHtml(l.label)}</div>` : ''}
         <div class="dest-url" title="${escHtml(l.original_url)}">${escHtml(l.original_url)}</div>
@@ -592,7 +593,7 @@ function renderLinks(links) {
       <td><span class="date-txt">${formatDate(l.created_at)}</span></td>
       <td>
         <div class="actions">
-          <button class="btn-icon btn-copy" data-url="https://vgc.to/${l.short}">Copy</button>
+          <button class="btn-icon btn-copy" data-url="${PUBLIC_BASE_URL}/${l.short}">Copy</button>
           <button class="btn-icon qr btn-qr" data-short="${l.short}">QR</button>
           <button class="btn-icon btn-edit" data-short="${l.short}">Edit</button>
           <button class="btn-icon danger btn-delete" data-short="${l.short}">Delete</button>
@@ -622,6 +623,10 @@ function filterLinks(q) {
     l.original_url.toLowerCase().includes(q) ||
     (l.label || '').toLowerCase().includes(q)
   ));
+}
+
+function displayShortUrl(shortcode) {
+  return `${PUBLIC_BASE_URL.replace(/^https?:\/\//, '')}/${shortcode}`;
 }
 
 async function createLink() {
