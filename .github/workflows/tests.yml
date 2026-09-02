@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main, staging]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -21,3 +25,27 @@ jobs:
         working-directory: app
         env:
           DATABASE_URL: 'sqlite:///:memory:'
+
+  deploy-production:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: test
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Configure restricted deployment key
+        env:
+          DEPLOY_KEY: ${{ secrets.PRODUCTION_DEPLOY_KEY }}
+          KNOWN_HOSTS: ${{ secrets.PRODUCTION_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/vgc-production-deploy
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/vgc-production-deploy ~/.ssh/known_hosts
+      - name: Deploy tested main commit
+        env:
+          DEPLOY_HOST: ${{ secrets.PRODUCTION_HOST }}
+        run: |
+          ssh -i ~/.ssh/vgc-production-deploy \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            vgcdeploy@"$DEPLOY_HOST"
